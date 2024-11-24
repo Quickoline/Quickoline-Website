@@ -5,7 +5,6 @@ import {
   Twitter, 
   Linkedin, 
   Instagram, 
-  Share2 
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 
@@ -50,11 +49,12 @@ const AboutPage = () => {
         <div>
           <h2 className="text-3xl font-bold mb-6">Our Journey</h2>
           <p className="text-gray-600 mb-4">
-            Founded in 2015, our company began with a simple mission: 
-            to help businesses leverage technology for growth and innovation. 
-            Over the years, we've worked with diverse clients across multiple industries, 
-            delivering cutting-edge solutions that drive real results.
-          </p>
+  Founded in 2015, our company began with a simple mission: 
+  to help businesses leverage technology for growth and innovation. 
+  Over the years, we&apos;ve worked with diverse clients across multiple industries, 
+  delivering cutting-edge solutions that drive real results.
+</p>
+
           <p className="text-gray-600">
             Our approach combines deep technological expertise with a 
             client-centric philosophy, ensuring we not just meet, but exceed expectations.
@@ -113,6 +113,9 @@ const AboutPage = () => {
           </Button>
           <Button variant="outline" size="lg">
             <Twitter className="mr-2" /> Share on Twitter
+          </Button>
+          <Button variant="outline" size="lg">
+            <Instagram className="mr-2" /> Share on Twitter
           </Button>
         </div>
       </section>
