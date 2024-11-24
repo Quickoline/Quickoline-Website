@@ -132,9 +132,10 @@ const ServicesSection = () => {
                 ))}
               </div>
               <p className="text-gray-600">
-                "Exceptional service and outstanding results. They transformed our business strategy 
-                and helped us achieve remarkable growth."
-              </p>
+  &quot;Exceptional service and outstanding results. They transformed our business strategy 
+  and helped us achieve remarkable growth.&quot;
+</p>
+
               <div className="flex items-center space-x-4">
                 <Image 
                   src="/images/clients/client2.png" 
