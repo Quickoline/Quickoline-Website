@@ -126,7 +126,7 @@ export default function ReferAndEarnPage() {
 
           <div>
             <Select 
-              onValueChange={(value: any) => setFormData({...formData, hearAbout: value})}
+              onValueChange={(value: string) => setFormData({...formData, hearAbout: value})}
             >
               <SelectTrigger>
                 <SelectValue placeholder="How did you hear about us?" />
