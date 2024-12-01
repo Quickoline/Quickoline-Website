@@ -101,19 +101,19 @@ const Tiptap = () => {
   });
 
   // Update the handleImageUpload function with proper typing:
-const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (e: ProgressEvent<FileReader>) => {
-      const result = e.target?.result;
-      if (typeof result === 'string' && editor) {
-        editor.chain().focus().setImage({ src: result }).run();
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-};
+// const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+//   const file = e.target.files?.[0];
+//   if (file) {
+//     const reader = new FileReader();
+//     reader.onload = (e: ProgressEvent<FileReader>) => {
+//       const result = e.target?.result;
+//       if (typeof result === 'string' && editor) {
+//         editor.chain().focus().setImage({ src: result }).run();
+//       }
+//     };
+//     reader.readAsDataURL(file);
+//   }
+// };
 
   const handleLinkSubmit = () => {
     if (editor && linkUrl) {
