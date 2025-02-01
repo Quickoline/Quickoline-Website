@@ -1,23 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import TextAlign from '@tiptap/extension-text-align';
-import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import Underline from '@tiptap/extension-underline';
-import Highlight from '@tiptap/extension-highlight';
-import TextStyle from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-
-import { 
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle 
-} from "@/components/ui/card";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { X, Plus } from 'lucide-react';
+import { blogApi, categoryApi, tagApi } from '@/lib/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -26,543 +24,314 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider
-} from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  Bold, 
-  Italic, 
-  Underline as UnderlineIcon,
-  Strikethrough,
-  Link as LinkIcon,
-  Image as ImageIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify,
-  List,
-  ListOrdered,
-  Quote,
-  Eye,
-  Pencil,
-  Save,
-  Heading1,
-  Heading2,
-  Heading3,
-  Code,
-  Undo,
-  Redo
-} from 'lucide-react';
 
-const Tiptap = () => {
-  const [previewMode, setPreviewMode] = useState(false);
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Tag {
+  id: string;
+  name: string;
+}
+
+const RichTextEditor = dynamic(
+  () => import('@/components/ui/rich-text-editor').then((mod) => mod.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[300px] border rounded-lg bg-gray-50 animate-pulse" />
+    ),
+  }
+);
+
+export default function CreateBlogPage() {
+  const router = useRouter();
   const [title, setTitle] = useState('');
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkText, setLinkText] = useState('');
+  const [content, setContent] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [newTag, setNewTag] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        heading: {
-          levels: [1, 2, 3],
-        },
-      }),
-      Underline,
-      TextStyle,
-      Color,
-      Highlight,
-      Link.configure({
-        openOnClick: true,
-        linkOnPaste: true,
-      }),
-      Image.configure({
-        inline: true,
-        allowBase64: true,
-      }),
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
-    ],
-    content: '<p>Write something awesome here! 🌟</p>',
-  });
+  // Fetch categories and tags on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [categoriesData, tagsData] = await Promise.all([
+          categoryApi.list(),
+          tagApi.list()
+        ]);
+        setCategories(categoriesData);
+        setTags(tagsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-//   // Update the handleImageUpload function with proper typing:
-// const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-//   const file = e.target.files?.[0];
-//   if (file) {
-//     const reader = new FileReader();
-//     reader.onload = (e: ProgressEvent<FileReader>) => {
-//       const result = e.target?.result;
-//       if (typeof result === 'string' && editor) {
-//         editor.chain().focus().setImage({ src: result }).run();
-//       }
-//     };
-//     reader.readAsDataURL(file);
-//   }
-// };
+    fetchData();
+  }, []);
 
-  const handleLinkSubmit = () => {
-    if (editor && linkUrl) {
-      if (linkText) {
-        editor
-          .chain()
-          .focus()
-          .insertContent(`<a href="${linkUrl}">${linkText}</a>`)
-          .run();
-      } else {
-        editor.chain().focus().setLink({ href: linkUrl }).run();
+  const handleAddCategory = async () => {
+    if (newCategory.trim()) {
+      try {
+        const createdCategory = await categoryApi.create({ name: newCategory.trim() });
+        setCategories([...categories, createdCategory]);
+        setNewCategory('');
+        setIsCategoryDialogOpen(false);
+      } catch (error) {
+        console.error('Error creating category:', error);
+        alert('Failed to create category. Please try again.');
       }
     }
-    setLinkDialogOpen(false);
-    setLinkUrl('');
-    setLinkText('');
   };
 
-  const handleSave = () => {
-    if (!editor || editor.isEmpty || !title.trim()) {
-      alert('Please add both title and content before saving.');
-      return;
+  const handleAddTag = async () => {
+    if (newTag.trim()) {
+      try {
+        const createdTag = await tagApi.create({ name: newTag.trim() });
+        setTags([...tags, createdTag]);
+        setNewTag('');
+        setIsTagDialogOpen(false);
+      } catch (error) {
+        console.error('Error creating tag:', error);
+        alert('Failed to create tag. Please try again.');
+      }
     }
-    const content = editor.getHTML();
-    const blogs = JSON.parse(localStorage.getItem('blogs') || '[]');
-    const newBlog = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      content,
-      createdAt: new Date().toISOString(),
-    };
-    blogs.push(newBlog);
-    localStorage.setItem('blogs', JSON.stringify(blogs));
-    alert('Content saved successfully!');
   };
 
-  if (!editor) {
-    return <p>Loading editor...</p>;
-  }
+  const handleCategorySelect = (categoryId: string) => {
+    if (!selectedCategories.includes(categoryId)) {
+      setSelectedCategories([...selectedCategories, categoryId]);
+    }
+  };
+
+  const handleTagSelect = (tagId: string) => {
+    if (!selectedTags.includes(tagId)) {
+      setSelectedTags([...selectedTags, tagId]);
+    }
+  };
+
+  const handleRemoveCategory = (categoryId: string) => {
+    setSelectedCategories(selectedCategories.filter(id => id !== categoryId));
+  };
+
+  const handleRemoveTag = (tagId: string) => {
+    setSelectedTags(selectedTags.filter(id => id !== tagId));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await blogApi.create({
+        title,
+        content,
+        categories: selectedCategories,
+        tags: selectedTags,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+      });
+      router.push('/admin/blogs');
+    } catch (error) {
+      console.error('Error creating blog:', error);
+      alert('Failed to create blog post. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <TooltipProvider>
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Rich Text Editor</CardTitle>
-        <div className="mt-4">
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold">Create New Blog Post</h1>
+        <p className="text-gray-500 mt-2">Write and publish your new blog post</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter your title here..."
-            className="mt-1"
+            placeholder="Enter blog title"
+            required
           />
         </div>
-      </CardHeader>
-      <CardContent>
-        {!previewMode && (
-          <div className="flex flex-wrap gap-2 mb-4 p-2 border rounded-lg bg-slate-50">
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={editor.isActive('bold') ? 'bg-slate-200' : ''}
-                  >
-                    <Bold className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Bold</TooltipContent>
-              </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className={editor.isActive('italic') ? 'bg-slate-200' : ''}
-                  >
-                    <Italic className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Italic</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleUnderline().run()}
-                    className={editor.isActive('underline') ? 'bg-slate-200' : ''}
-                  >
-                    <UnderlineIcon className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Underline</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleStrike().run()}
-                    className={editor.isActive('strike') ? 'bg-slate-200' : ''}
-                  >
-                    <Strikethrough className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Strikethrough</TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex items-center gap-0.5">
-              <Input
-                type="color"
-                className="w-8 h-8 p-1"
-                onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-                title="Text Color"
-              />
-              <Input
-                type="color"
-                className="w-8 h-8 p-1"
-                onChange={(e) =>
-                  editor.chain().focus().setHighlight({ color: e.target.value }).run()
-                }
-                title="Background Color"
-              />
-            </div>
-
-            <div className="flex items-center gap-0.5">
-              <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <LinkIcon className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Link</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="url">URL</Label>
-                      <Input
-                        id="url"
-                        value={linkUrl}
-                        onChange={(e) => setLinkUrl(e.target.value)}
-                        placeholder="https://example.com"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="text">Link Text (optional)</Label>
-                      <Input
-                        id="text"
-                        value={linkText}
-                        onChange={(e) => setLinkText(e.target.value)}
-                        placeholder="Enter link text"
-                      />
-                    </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="categories">Categories</Label>
+            <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Category
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Category</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Category Name</Label>
+                    <Input
+                      id="name"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      placeholder="Enter category name"
+                    />
                   </div>
-                  <DialogFooter>
-                    <Button onClick={handleLinkSubmit}>Add Link</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.accept = 'image/*';
-                      input.onchange = (e: Event) => {
-                        const target = e.target as HTMLInputElement;
-                        const file = target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (e: ProgressEvent<FileReader>) => {
-                            const result = e.target?.result;
-                            if (typeof result === 'string' && editor) {
-                              editor.chain().focus().setImage({ src: result }).run();
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      };
-                      input.click();
-                    }}
-                  >
-                    <ImageIcon className="h-4 w-4" />
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleAddCategory} disabled={!newCategory.trim()}>
+                    Create Category
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>Add Image</TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                    className={editor.isActive('heading', { level: 1 }) ? 'bg-slate-200' : ''}
-                  >
-                    <Heading1 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Heading 1</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                    className={editor.isActive('heading', { level: 2 }) ? 'bg-slate-200' : ''}
-                  >
-                    <Heading2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Heading 2</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                    className={editor.isActive('heading', { level: 3 }) ? 'bg-slate-200' : ''}
-                  >
-                    <Heading3 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Heading 3</TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                    className={editor.isActive({ textAlign: 'left' }) ? 'bg-slate-200' : ''}
-                  >
-                    <AlignLeft className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Align Left</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                    className={editor.isActive({ textAlign: 'center' }) ? 'bg-slate-200' : ''}
-                  >
-                    <AlignCenter className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Align Center</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                    className={editor.isActive({ textAlign: 'right' }) ? 'bg-slate-200' : ''}
-                  >
-                    <AlignRight className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Align Right</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-                    className={editor.isActive({ textAlign: 'justify' }) ? 'bg-slate-200' : ''}
-                  >
-                    <AlignJustify className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Justify</TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleBulletList().run()}
-                    className={editor.isActive('bulletList') ? 'bg-slate-200' : ''}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Bullet List</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                    className={editor.isActive('orderedList') ? 'bg-slate-200' : ''}>
-                    <ListOrdered className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Numbered List</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                    className={editor.isActive('blockquote') ? 'bg-slate-200' : ''}
-                  >
-                    <Quote className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Quote</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                    className={editor.isActive('codeBlock') ? 'bg-slate-200' : ''}
-                  >
-                    <Code className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Code Block</TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().undo().run()}
-                  >
-                    <Undo className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Undo</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => editor.chain().focus().redo().run()}
-                  >
-                    <Redo className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Redo</TooltipContent>
-              </Tooltip>
-            </div>
-
-            <div className="flex gap-2 ml-auto">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSave}
-                className="bg-white hover:bg-slate-100"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPreviewMode(!previewMode)}
-                className="bg-white hover:bg-slate-100"
-              >
-                {previewMode ? (
-                  <>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </>
-                )}
-              </Button>
-            </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        )}
-
-        <div className="border rounded-lg p-4 min-h-[400px] bg-white">
-          {previewMode ? (
-            <div
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: editor?.getHTML() || '' }}
-            />
-          ) : (
-            <EditorContent editor={editor} className="prose max-w-none" />
-          )}
+          
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedCategories.map((categoryId) => {
+              const category = categories.find(c => c.id === categoryId);
+              return category ? (
+                <Badge key={category.id} variant="secondary" className="gap-1">
+                  {category.name}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCategory(category.id)}
+                    className="ml-1 hover:text-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ) : null;
+            })}
+          </div>
+          
+          <Select onValueChange={handleCategorySelect}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem 
+                  key={category.id} 
+                  value={category.id}
+                  disabled={selectedCategories.includes(category.id)}
+                >
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {previewMode && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPreviewMode(false)}
-            className="mt-4"
-          >
-            <Pencil className="h-4 w-4 mr-2" />
-            Return to Edit Mode
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-    </TooltipProvider>
-  );
-};
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="tags">Tags</Label>
+            <Dialog open={isTagDialogOpen} onOpenChange={setIsTagDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Tag
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Tag</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="tagName">Tag Name</Label>
+                    <Input
+                      id="tagName"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      placeholder="Enter tag name"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleAddTag} disabled={!newTag.trim()}>
+                    Create Tag
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-export default Tiptap;
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedTags.map((tagId) => {
+              const tag = tags.find(t => t.id === tagId);
+              return tag ? (
+                <Badge key={tag.id} variant="outline" className="gap-1">
+                  {tag.name}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag.id)}
+                    className="ml-1 hover:text-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ) : null;
+            })}
+          </div>
+
+          <Select onValueChange={handleTagSelect}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a tag" />
+            </SelectTrigger>
+            <SelectContent>
+              {tags.map((tag) => (
+                <SelectItem 
+                  key={tag.id} 
+                  value={tag.id}
+                  disabled={selectedTags.includes(tag.id)}
+                >
+                  {tag.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Content</Label>
+          <RichTextEditor
+            value={content}
+            onChange={setContent}
+            placeholder="Write your blog content here..."
+          />
+        </div>
+
+        <div className="flex justify-end gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : 'Create Post'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

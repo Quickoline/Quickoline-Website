@@ -1,36 +1,37 @@
-'use client'
-import localFont from "next/font/local";
-import "./globals.css";
-import Footer from "@/components/ui/footer";
-import Navbar from "@/components/ui/navbar";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import Navbar from '@/components/ui/navbar';
+import ContactSection from '@/components/ui/contact-section';
+import { Toaster } from 'sonner';
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Quickoline - Your Online Cyber Cafe',
+  description: 'Get your online works done quickly without visiting offline centres.',
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-        <Navbar/>
-        <Footer/>
+    <html lang="en" className="min-h-screen">
+      <body className={`${inter.className} min-h-screen flex flex-col`}>
+        <Navbar />
+        <main className="flex-1 mt-16">
+          {children}
+        </main>
+        <footer className="mt-16 px-4">
+          <ContactSection />
+          <div className="container mx-auto py-6 mt-8 text-center text-sm text-black/60">
+            © {new Date().getFullYear()} Quickoline. All rights reserved.
+          </div>
+        </footer>
+        <Toaster />
       </body>
-      
     </html>
   );
 }

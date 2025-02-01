@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
@@ -11,6 +11,8 @@ import Highlight from '@tiptap/extension-highlight';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { blogApi } from '@/lib/api';
 
 import { 
   Card,
@@ -25,6 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -58,13 +61,38 @@ import {
   Undo,
   Redo
 } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { X } from 'lucide-react';
 
-const Tiptap = () => {
+interface Blog {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  author?: {
+    name: string;
+    avatar?: string;
+  };
+  status: 'draft' | 'published';
+  categories?: string[];
+  tags?: string[];
+}
+
+export default function EditBlogPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const [previewMode, setPreviewMode] = useState(false);
   const [title, setTitle] = useState('');
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<'draft' | 'published'>('draft');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [newTag, setNewTag] = useState('');
 
   const editor = useEditor({
     extensions: [
@@ -97,23 +125,29 @@ const Tiptap = () => {
         types: ['heading', 'paragraph'],
       }),
     ],
-    content: '<p>Write something awesome here! 🌟</p>',
+    content: '<p>Loading...</p>',
   });
 
-  // Update the handleImageUpload function with proper typing:
-// const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-//   const file = e.target.files?.[0];
-//   if (file) {
-//     const reader = new FileReader();
-//     reader.onload = (e: ProgressEvent<FileReader>) => {
-//       const result = e.target?.result;
-//       if (typeof result === 'string' && editor) {
-//         editor.chain().focus().setImage({ src: result }).run();
-//       }
-//     };
-//     reader.readAsDataURL(file);
-//   }
-// };
+  useEffect(() => {
+    const fetchBlog = async () => {
+      try {
+        const blog = await blogApi.getById(params.id);
+        setTitle(blog.title);
+        setStatus(blog.status);
+        setCategories(blog.categories || []);
+        setTags(blog.tags || []);
+        editor?.commands.setContent(blog.content);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch blog');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (editor) {
+      fetchBlog();
+    }
+  }, [editor, params.id]);
 
   const handleLinkSubmit = () => {
     if (editor && linkUrl) {
@@ -132,23 +166,102 @@ const Tiptap = () => {
     setLinkText('');
   };
 
-  const handleSave = () => {
+  const handleAddCategory = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newCategory.trim()) {
+      e.preventDefault();
+      if (!categories.includes(newCategory.trim())) {
+        setCategories([...categories, newCategory.trim()]);
+      }
+      setNewCategory('');
+    }
+  };
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newTag.trim()) {
+      e.preventDefault();
+      if (!tags.includes(newTag.trim())) {
+        setTags([...tags, newTag.trim()]);
+      }
+      setNewTag('');
+    }
+  };
+
+  const handleRemoveCategory = (category: string) => {
+    setCategories(categories.filter(c => c !== category));
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setTags(tags.filter(t => t !== tag));
+  };
+
+  const handleSave = async () => {
     if (!editor || editor.isEmpty || !title.trim()) {
       alert('Please add both title and content before saving.');
       return;
     }
-    const content = editor.getHTML();
-    const blogs = JSON.parse(localStorage.getItem('blogs') || '[]');
-    const newBlog = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      content,
-      createdAt: new Date().toISOString(),
-    };
-    blogs.push(newBlog);
-    localStorage.setItem('blogs', JSON.stringify(blogs));
-    alert('Content saved successfully!');
+
+    try {
+      setSaving(true);
+      const content = editor.getHTML();
+      const updatedBlog = {
+        title: title.trim(),
+        content,
+        status,
+        categories,
+        tags,
+      };
+
+      await blogApi.update(params.id, updatedBlog);
+      alert('Blog updated successfully!');
+      // Optionally redirect to blog list
+      // router.push('/admin/blogs');
+    } catch (error) {
+      alert('Failed to update blog: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="w-full max-w-4xl mx-auto">
+          <CardHeader>
+            <CardTitle>Loading...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-5/6" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card className="w-full max-w-4xl mx-auto">
+          <CardHeader>
+            <CardTitle className="text-red-600">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-600">{error}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => router.push('/admin/blogs')}
+            >
+              Back to Blog List
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!editor) {
     return <p>Loading editor...</p>;
@@ -158,16 +271,81 @@ const Tiptap = () => {
     <TooltipProvider>
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle>Rich Text Editor</CardTitle>
-        <div className="mt-4">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter your title here..."
-            className="mt-1"
-          />
+        <CardTitle>Edit Blog Post</CardTitle>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter your title here..."
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <select
+              id="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as 'draft' | 'published')}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="categories">Categories</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {categories.map((category) => (
+                <Badge key={category} variant="secondary" className="gap-1">
+                  {category}
+                  <button
+                    onClick={() => handleRemoveCategory(category)}
+                    className="ml-1 hover:text-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <Input
+              id="categories"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={handleAddCategory}
+              placeholder="Add a category (press Enter)"
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="tags">Tags</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="outline" className="gap-1">
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 hover:text-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <Input
+              id="tags"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              onKeyDown={handleAddTag}
+              placeholder="Add a tag (press Enter)"
+              className="mt-1"
+            />
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -232,23 +410,6 @@ const Tiptap = () => {
             </div>
 
             <div className="flex items-center gap-0.5">
-              <Input
-                type="color"
-                className="w-8 h-8 p-1"
-                onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-                title="Text Color"
-              />
-              <Input
-                type="color"
-                className="w-8 h-8 p-1"
-                onChange={(e) =>
-                  editor.chain().focus().setHighlight({ color: e.target.value }).run()
-                }
-                title="Background Color"
-              />
-            </div>
-
-            <div className="flex items-center gap-0.5">
               <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm">
@@ -258,6 +419,9 @@ const Tiptap = () => {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Add Link</DialogTitle>
+                    <DialogDescription>
+                      Enter the URL and optional text for your link.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
@@ -441,7 +605,8 @@ const Tiptap = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                    className={editor.isActive('orderedList') ? 'bg-slate-200' : ''}>
+                    className={editor.isActive('orderedList') ? 'bg-slate-200' : ''}
+                  >
                     <ListOrdered className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -505,46 +670,47 @@ const Tiptap = () => {
               </Tooltip>
             </div>
 
-            <div className="flex gap-2 ml-auto">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSave}
-                className="bg-white hover:bg-slate-100"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPreviewMode(!previewMode)}
-                className="bg-white hover:bg-slate-100"
-              >
-                {previewMode ? (
-                  <>
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </>
-                )}
-              </Button>
+            <div className="flex items-center gap-0.5 ml-auto">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPreviewMode(true)}
+                    disabled={saving}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Preview</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         )}
 
-        <div className="border rounded-lg p-4 min-h-[400px] bg-white">
+        <div className={previewMode ? 'prose max-w-none' : ''}>
           {previewMode ? (
-            <div
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: editor?.getHTML() || '' }}
-            />
+            <div dangerouslySetInnerHTML={{ __html: editor.getHTML() }} />
           ) : (
-            <EditorContent editor={editor} className="prose max-w-none" />
+            <EditorContent editor={editor} className="min-h-[500px] border rounded-lg p-4" />
           )}
         </div>
 
@@ -563,6 +729,4 @@ const Tiptap = () => {
     </Card>
     </TooltipProvider>
   );
-};
-
-export default Tiptap;
+}

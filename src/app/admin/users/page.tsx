@@ -20,7 +20,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger, 
+  DialogDescription 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +79,10 @@ export default function UserManagement() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
+                <DialogTitle>Add New User</DialogTitle>
+                <DialogDescription>
+                  Fill in the details to create a new user account.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateUser} className="space-y-4">
                 <div>
