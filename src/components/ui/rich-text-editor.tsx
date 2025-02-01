@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
 import Link from '@tiptap/extension-link';
@@ -12,32 +12,23 @@ import Color from '@tiptap/extension-color';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
-import Document from '@tiptap/extension-document';
-import Paragraph from '@tiptap/extension-paragraph';
-import Text from '@tiptap/extension-text';
-import Heading from '@tiptap/extension-heading';
 import { Button } from './button';
 import { 
   Bold, 
   Italic, 
   Underline as UnderlineIcon,
-  Strikethrough,
   Link as LinkIcon,
   Image as ImageIcon,
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify,
   List,
   ListOrdered,
   Quote,
-  Eye,
-  Pencil,
   Save,
   Heading1,
   Heading2,
   Heading3,
-  Code,
   Undo,
   Redo
 } from 'lucide-react';
@@ -47,7 +38,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog";
 import {

@@ -4,6 +4,16 @@ interface RequestOptions extends RequestInit {
   token?: string;
 }
 
+interface BlogData {
+  title: string;
+  content: string;
+  categories?: string[];
+  tags?: string[];
+  status?: 'draft' | 'published';
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
 async function fetchWithAuth(url: string, options: RequestOptions = {}) {
   // Get the auth token from wherever you store it (localStorage, cookies, etc.)
   const token = options.token || localStorage.getItem('authToken');
@@ -45,7 +55,7 @@ export const blogApi = {
     return response.json();
   },
 
-  async create(data: any) {
+  async create(data: BlogData) {
     const response = await fetchWithAuth(API_ENDPOINTS.blogs.create, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -53,7 +63,7 @@ export const blogApi = {
     return response.json();
   },
 
-  async update(id: string, data: any) {
+  async update(id: string, data: BlogData) {
     const response = await fetchWithAuth(API_ENDPOINTS.blogs.update(id), {
       method: 'PUT',
       body: JSON.stringify(data),
